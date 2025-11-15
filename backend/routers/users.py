@@ -20,6 +20,11 @@ def create_user(user:schemas.UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 #Get user by id
-@router.post("/", response_model=schemas.UserOut)
+@router.get("/{id}", response_model=schemas.UserOut) 
 def create_user(id: int, db: Session = Depends(get_db)):
-    pass
+    user_query = db.query(models.User).filter(models.User.id == id)
+    find_user = user_query.first()
+    if not find_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"User not found!")
+    return find_user

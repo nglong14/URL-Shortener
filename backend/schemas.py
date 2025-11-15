@@ -14,3 +14,10 @@ class UserOut(BaseModel):
     created_at: datetime
     class Config():
         model_config = ConfigDict(from_attributes=True)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    id: Optional[int] = None
