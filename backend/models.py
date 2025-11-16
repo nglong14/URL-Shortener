@@ -31,7 +31,9 @@ class Interview(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     company_name = Column(String, nullable=False)
-    interview_type = Column(Enum(InterviewType), nullable=False)
+    # Use String column instead of Enum to avoid database enum type mismatches
+    # Pydantic validation in schemas.py ensures values are valid InterviewType
+    interview_type = Column(String, nullable=False)
     scheduled_at = Column(DateTime, nullable=False)
     notes = Column(String, nullable=True)
     location = Column(String, nullable=True)
