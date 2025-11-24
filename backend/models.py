@@ -24,5 +24,6 @@ class URL(Base):
     original_url = Column(String, nullable=False)
     short_code = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    clicks = Column(Integer, default=0)
 
     user = relationship("User", back_populates="urls")

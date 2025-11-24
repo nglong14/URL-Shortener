@@ -32,5 +32,6 @@ class URLResponse(URLBase):
     id: int
     short_code: str
     created_at: datetime
+    clicks: int
     class Config():
         model_config = ConfigDict(from_attributes=True)

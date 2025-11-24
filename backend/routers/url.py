@@ -1,6 +1,6 @@
 
 from .. import models, schemas, oauth2, utils, cache
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from ..database import get_db
 from sqlalchemy.orm import Session
 import string, random, datetime
@@ -54,18 +54,33 @@ def get_urls(db: Session = Depends(get_db), current_user: models.User = Depends(
     urls = db.query(models.URL).filter(models.URL.user_id == current_user.id).order_by(models.URL.created_at.desc()).all()
     
     # Cache the result for 1 hour (3600 seconds)
-    urls_data = [{"id": url.id, "original_url": url.original_url, "short_code": url.short_code, "created_at": url.created_at.isoformat()} for url in urls]
+    urls_data = [{"id": url.id, "original_url": url.original_url, "short_code": url.short_code, "created_at": url.created_at.isoformat(), "clicks": url.clicks} for url in urls]
     cache.set_cache(cache_key, urls_data, ttl=3600)
     
     return urls
 
+def update_click_count(short_code: str, db: Session):
+    """Background task to update click count in database"""
+    url = db.query(models.URL).filter(models.URL.short_code == short_code).first()
+    if url:
+        # Get current count from Redis
+        redis_clicks = cache.get_clicks(short_code)
+        # Update database with Redis count
+        url.clicks = redis_clicks
+        db.commit()
+
 # Redirect short URL (public, no auth)
 @router.get("/r/{short_code}")
-def redirect_short_url(short_code: str, db: Session = Depends(get_db)):
+def redirect_short_url(short_code: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # Try cache first
     cache_key = f"short_url:{short_code}"
     cached_url = cache.get_cache(cache_key)
+    
     if cached_url:
+        # Increment click count in Redis (instant)
+        cache.increment_clicks(short_code)
+        # Schedule background task to sync to database
+        background_tasks.add_task(update_click_count, short_code, db)
         return cached_url
     
     # Get from database
@@ -75,7 +90,13 @@ def redirect_short_url(short_code: str, db: Session = Depends(get_db)):
     
     result = {"original_url": url.original_url}
     
+    # Increment click count in Redis
+    cache.increment_clicks(short_code)
+    
     # Cache for 24 hours (URLs don't change often)
     cache.set_cache(cache_key, result, ttl=86400)
+    
+    # Schedule background task to sync to database
+    background_tasks.add_task(update_click_count, short_code, db)
     
     return result

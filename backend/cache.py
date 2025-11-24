@@ -39,3 +39,20 @@ def delete_cache(key: str) -> bool:
 def invalidate_user_urls_cache(user_id: int) -> bool:
     """Invalidate user's URLs cache when they create/update/delete a URL"""
     return delete_cache(f"user_urls:{user_id}")
+
+def increment_clicks(short_code: str) -> int:
+    """Increment click count in Redis for a short code"""
+    try:
+        key = f"clicks:{short_code}"
+        return redis_client.incr(key)
+    except redis.ConnectionError:
+        return 0
+
+def get_clicks(short_code: str) -> int:
+    """Get click count from Redis"""
+    try:
+        key = f"clicks:{short_code}"
+        clicks = redis_client.get(key)
+        return int(clicks) if clicks else 0
+    except redis.ConnectionError:
+        return 0
